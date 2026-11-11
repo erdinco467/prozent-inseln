@@ -507,27 +507,42 @@ function advance(){
   show('doneScreen');
 }
 
-/* Result code: PROZENT-scores-ID-CHECK. The check mixes name, scores and ID,
-   so a code cannot be typed by hand or swapped with another student.
-   The teacher page uses the same function. */
+/* Result code like a PIN: XXXX-XXXX (8 chars, 40 bits).
+   Inside: scores (4 x 3 bits) + random run id (12 bits), hidden with a mask,
+   plus a 16-bit check that mixes in the name. The teacher page uses the same code. */
 const ABC = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-let runId = '';
 const normName = n => n.trim().toLowerCase().replace(/\s+/g,' ');
-function check(name, scores, id){
-  let h = 2166136261;
-  for(const ch of 'pi-7q|' + normName(name) + '|' + scores.join('-') + '|' + id){ h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
-  return Array.from({length:3}, (_,i) => ABC[(h >>> (i*5)) & 31]).join('');
+function fnv(str){ let h = 2166136261; for(const ch of str){ h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; } return h; }
+const sumCheck = (name, payload) => fnv('pi-7q|' + normName(name) + '|' + payload) & 0xffff;
+const maskOf = c => fnv('mask|' + c) & 0xffffff;
+function makeCode(name, scores, runId){
+  const payload = scores.reduce((a,s) => a*8 + s, 0) * 4096 + runId;   // 24 bits
+  const c = sumCheck(name, payload);
+  let n = ((payload ^ maskOf(c)) >>> 0) * 65536 + c, out = '';
+  for(let i=0; i<8; i++){ out = ABC[n % 32] + out; n = Math.floor(n / 32); }
+  return out.slice(0,4) + '-' + out.slice(4);
 }
+function readCode(name, code){
+  const s = code.toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(s.length !== 8) return null;
+  let n = 0; for(const ch of s){ const v = ABC.indexOf(ch); if(v < 0) return null; n = n*32 + v; }
+  const c = n % 65536, payload = (Math.floor(n / 65536) ^ maskOf(c)) >>> 0;
+  let p = Math.floor(payload / 4096); const scores = [];
+  for(let i=0; i<4; i++){ scores.unshift(p % 8); p = Math.floor(p / 8); }
+  const valid = sumCheck(name, payload) === c && scores.every(x => x <= 5);
+  return {scores, id: payload % 4096, valid};
+}
+let runId = 0;
 function updateCode(){
   const name = $('who').value, ok = normName(name).length >= 2, sc = state.map(s => s.score);
   $('save').disabled = !ok;
-  $('code').textContent = ok ? `PROZENT-${sc.join('-')}-${runId}-${check(name, sc, runId)}` : 'Erst Namen eintragen';
+  $('code').textContent = ok ? makeCode(name, sc, runId) : 'Erst Namen eintragen';
 }
 $('who').addEventListener('input', updateCode);
 function finish(){
   $('scene').classList.remove('hidden'); setScene('peak'); $('mLabel').textContent = ''; extra = 0; setDanger(tasks.length);
   $('resTable').innerHTML = WORLDS.map((W,i) => `<tr><td>${W.icon} ${W.name}</td><td>${state[i].score} von ${state[i].total}</td></tr>`).join('');
-  runId = Array.from({length:4}, () => ABC[rnd(0,ABC.length-1)]).join('');
+  runId = rnd(0,4095);
   $('who').value = ''; updateCode();
   show('resultScreen');
 }
