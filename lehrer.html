@@ -113,7 +113,7 @@ function readCode(name, code){
   const valid = sumCheck(name, payload) === c && scores.every(x => x <= 5);
   return {scores, redos, id: payload % 16, valid};
 }
-const CODE = /\b([A-Za-z2-9]{4})-?([A-Za-z2-9]{4})\b/;
+const CODE = /\b([A-Za-z2-9]{4})[- ]?([A-Za-z2-9]{4})\b/;
 let list = [], sortBy = 'name', sortDir = 1;
 
 function add(name, text){
@@ -146,14 +146,14 @@ function render(){
   $('cards').innerHTML = WORLDS.map((W,i) => `<div class="card ${i===hard && ok.length?'hard':''}"><div class="t">${W} · ${TOPIC[i]}</div>
     <div class="v">${avg[i].toFixed(1).replace('.',',')} <span class="small">von 5</span></div><div class="meter"><i style="width:${avg[i]*20}%"></i></div></div>`).join('');
   $('note').innerHTML = ok.length
-    ? `<b>${ok.length} Ergebnisse.</b> Am schwierigsten war <b>${WORLDS[hard]} (${TOPIC[hard]})</b>. Hier lohnt sich eine kurze Wiederholung.`
+    ? `<b>${ok.length} ${ok.length===1?'Ergebnis':'Ergebnisse'}.</b> Am schwierigsten war <b>${WORLDS[hard]} (${TOPIC[hard]})</b>. Hier lohnt sich eine kurze Wiederholung.`
     : 'Noch keine gültigen Ergebnisse.';
   const cols = [['name','Name'],...WORLDS.map((W,i)=>['w'+i,W]),['total','Gesamt'],['redo','Nachgeholt'],['valid','Code']];
   $('head').innerHTML = cols.map(([k,t]) => `<th data-k="${k}">${t}${sortBy===k?(sortDir>0?' ▲':' ▼'):''}</th>`).join('');
   const val = (e,k) => k==='name' ? e.name.toLowerCase() : k==='total' ? e.total : k==='redo' ? e.redo : k==='valid' ? +e.valid : e.scores[+k.slice(1)];
   const rows = [...list].sort((a,b) => (val(a,sortBy) > val(b,sortBy) ? 1 : val(a,sortBy) < val(b,sortBy) ? -1 : 0) * sortDir);
   const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-  $('rows').innerHTML = rows.map(e => `<tr><td>${esc(e.name)}</td>${e.scores.map(s=>`<td class="n">${s}</td>`).join('')}<td class="n"><b>${e.total}</b> / 20</td><td class="n">${e.redo}</td>
+  $('rows').innerHTML = rows.map(e => `<tr><td>${esc(e.name)}</td>${e.valid ? e.scores.map(s=>`<td class="n">${s}</td>`).join('') + `<td class="n"><b>${e.total}</b> / 20</td><td class="n">${e.redo}</td>` : '<td class="n">–</td>'.repeat(6)}
     <td>${e.valid ? '<span class="ok">✓ echt</span>' : '<span class="bad">✗ passt nicht</span>'}</td></tr>`).join('');
   $('legend').textContent = list.some(e => !e.valid)
     ? '„✗ passt nicht“ heißt: Der Code ist falsch abgeschrieben, wurde verändert oder gehört zu einem anderen Namen. Prüfen Sie bei Zetteln auch die Schreibweise des Namens. Diese Zeilen zählen nicht im Überblick.' : '';
