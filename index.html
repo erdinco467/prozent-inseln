@@ -28,7 +28,19 @@ body{background:var(--bg);color:var(--text);font:18px/1.45 system-ui,-apple-syst
 .scene.swap svg{animation:swap .45s ease-out}
 @keyframes swap{from{opacity:0;transform:translateX(40px) scale(1.05)}to{opacity:1;transform:none}}
 .bar{position:absolute;left:12px;right:12px;bottom:10px;height:10px;background:#0006;border-radius:6px;overflow:hidden}
-.bar i{display:block;height:100%;width:calc(var(--p)*100%);background:var(--ok);transition:width .6s}
+.bar i{display:block;height:100%;width:calc(var(--d,0)*100%);background:linear-gradient(90deg,#f2c46d,#ff5a3c);transition:width .6s}
+.mlabel{position:absolute;left:14px;bottom:24px;font:700 12px "Fredoka",system-ui,sans-serif;color:#fff;background:#0008;padding:2px 8px;border-radius:8px}
+/* Danger mechanics: --d = danger (1 = start, 0 = safe), --p = 1 - danger */
+.scene svg *{transition:transform .7s ease-out,opacity .7s}
+.lava{transform:translateY(calc((1 - var(--d,0))*26px))}
+.heat{opacity:calc(var(--d,0)*.28)}
+.boat{transform:translate(calc(var(--p)*62px),calc(var(--d,0)*5px))}
+.leak{transform-origin:0 44px;transform:scaleY(var(--d,0))}
+.fog{opacity:calc(var(--d,0)*.85)}
+.climber{transform:translate(calc(var(--p)*44px),calc(var(--p)*-50px))}
+.storm{opacity:calc(var(--d,0)*.9)}
+.scene.hot svg{animation:quake .25s linear infinite}
+@keyframes quake{25%{transform:translate(-1px,1px)}75%{transform:translate(1px,-1px)}}
 .fade-out{opacity:calc(1 - var(--p));transition:opacity .6s}
 .fade-in{opacity:var(--p);transition:opacity .6s}
 .drift{animation:drift 4s ease-in-out infinite alternate}
@@ -106,7 +118,7 @@ table.res td:last-child{text-align:right;font-weight:700}
 <body>
 <div class="wrap">
 
-  <div class="scene" id="scene" aria-hidden="true"><div id="art"></div><div class="bar"><i></i></div></div>
+  <div class="scene" id="scene" aria-hidden="true"><div id="art"></div><span class="mlabel" id="mLabel"></span><div class="bar"><i></i></div></div>
   <div class="progress" id="progress"></div>
 
   <!-- World map -->
@@ -183,7 +195,10 @@ const ART = {
     <rect x="0" y="70" width="160" height="20" fill="#3a2a35"/>
     <polygon points="40,72 68,26 92,26 120,72" fill="#5a3b3e"/><polygon points="52,72 70,40 90,40 108,72" fill="#6b4547"/>
     <rect class="fade-out" x="66" y="22" width="28" height="6" fill="#ffb347"/><rect x="70" y="26" width="20" height="4" fill="#ff6a2b"/>
+    <g class="lava"><rect x="72" y="2" width="16" height="26" fill="#ff6a2b"/><rect x="75" y="0" width="10" height="4" fill="#ffb347"/></g>
+    <polygon points="68,26 92,26 104,46 56,46" fill="#5a3b3e"/><polygon points="52,72 70,40 90,40 108,72" fill="#6b4547"/>
     <polygon class="fade-out" points="76,30 84,30 88,52 72,52" fill="#ff6a2b"/>
+    <rect class="heat" width="160" height="90" fill="#ff3b1f"/>
     <rect class="fade-in" x="70" y="24" width="20" height="3" fill="#5fb3c9"/>
     <rect x="10" y="62" width="6" height="10" fill="#2f5d43"/><rect x="8" y="56" width="10" height="7" fill="#3f7a57"/>
     <rect x="140" y="60" width="6" height="12" fill="#2f5d43"/><rect x="137" y="53" width="12" height="8" fill="#3f7a57"/></svg>`,
@@ -192,19 +207,23 @@ const ART = {
     <g class="fade-out drift"><rect x="20" y="10" width="40" height="10" fill="#4a5470"/><rect x="28" y="6" width="22" height="6" fill="#4a5470"/><rect x="80" y="16" width="34" height="8" fill="#4a5470"/></g>
     <rect x="0" y="50" width="160" height="40" fill="#1f5a7a"/><rect x="0" y="62" width="160" height="28" fill="#1a4a66"/>
     <g class="drift"><rect x="10" y="48" width="18" height="3" fill="#7fc4dd"/><rect x="60" y="47" width="22" height="3" fill="#7fc4dd"/><rect x="115" y="49" width="20" height="3" fill="#7fc4dd"/></g>
-    <rect x="70" y="40" width="20" height="6" fill="#8a5a3c"/><rect x="78" y="26" width="2" height="14" fill="#d8c9a8"/><rect x="80" y="28" width="8" height="10" fill="#f4ece4"/>
+    <rect x="128" y="40" width="32" height="8" fill="#d8c08a"/><rect x="140" y="26" width="3" height="14" fill="#6b4a2e"/><rect x="134" y="22" width="15" height="6" fill="#3f7a57"/>
+    <g class="boat"><g transform="translate(-50,0)"><rect x="70" y="40" width="20" height="6" fill="#8a5a3c"/><rect class="leak" x="72" y="40" width="16" height="4" fill="#5fb3c9"/><rect x="78" y="26" width="2" height="14" fill="#d8c9a8"/><rect x="80" y="28" width="8" height="10" fill="#f4ece4"/></g></g>
     <rect class="fade-in" x="30" y="70" width="6" height="3" fill="#ffb347"/><rect class="fade-in" x="110" y="76" width="6" height="3" fill="#ffb347"/></svg>`,
   forest:`<svg viewBox="0 0 160 90"><rect width="160" height="90" fill="#1c2a24"/>
     <rect x="0" y="72" width="160" height="18" fill="#22402f"/>
     <g fill="#2f5d43"><rect x="14" y="30" width="20" height="42"/><rect x="50" y="22" width="24" height="50"/><rect x="94" y="28" width="22" height="44"/><rect x="128" y="34" width="20" height="38"/></g>
     <g fill="#5a3b2e"><rect x="22" y="62" width="4" height="10"/><rect x="60" y="62" width="4" height="10"/><rect x="103" y="62" width="4" height="10"/><rect x="136" y="62" width="4" height="10"/></g>
     <g class="fade-in" fill="#ffe27a"><rect x="38" y="44" width="2" height="2"/><rect x="82" y="36" width="2" height="2"/><rect x="120" y="50" width="2" height="2"/><rect x="70" y="58" width="2" height="2"/><rect x="28" y="24" width="2" height="2"/><rect x="146" y="28" width="2" height="2"/></g>
-    <rect class="fade-out drift" x="0" y="50" width="160" height="22" fill="#9aa8a0" opacity=".35"/></svg>`,
+    <rect class="fade-in" x="74" y="64" width="12" height="8" fill="#c9a86a"/><rect class="fade-in" x="74" y="62" width="12" height="3" fill="#8a5a3c"/>
+    <g class="fog drift"><rect x="0" y="16" width="160" height="60" fill="#9aa8a0" opacity=".55"/><rect x="0" y="44" width="160" height="30" fill="#c4ccc6" opacity=".6"/></g></svg>`,
   peak:`<svg viewBox="0 0 160 90"><rect width="160" height="90" fill="#1d2140"/>
     <g class="fade-in" fill="#f4ece4"><rect x="20" y="10" width="2" height="2"/><rect x="50" y="20" width="2" height="2"/><rect x="130" y="12" width="2" height="2"/><rect x="100" y="26" width="2" height="2"/><rect x="146" y="30" width="2" height="2"/></g>
     <polygon points="20,80 80,18 140,80" fill="#4a4f6e"/><polygon points="66,32 80,18 94,32 86,30 80,36 74,30" fill="#e8eef5"/>
     <rect x="79" y="6" width="2" height="12" fill="#d8c9a8"/><rect class="fade-in" x="81" y="6" width="10" height="6" fill="#ff6a2b"/>
-    <rect x="0" y="78" width="160" height="12" fill="#2b2f4a"/></svg>`
+    <rect x="0" y="78" width="160" height="12" fill="#2b2f4a"/>
+    <g class="climber"><rect x="31" y="66" width="4" height="7" fill="#d9622b"/><rect x="31" y="62" width="4" height="4" fill="#f2c9a0"/></g>
+    <g class="storm"><rect x="10" y="4" width="50" height="10" fill="#5a5f7a"/><rect x="96" y="8" width="56" height="10" fill="#5a5f7a"/><rect x="40" y="14" width="2" height="16" fill="#cfd8ff"/><rect x="118" y="18" width="2" height="18" fill="#cfd8ff"/></g></svg>`
 };
 
 /* ---------- Worlds ---------- */
@@ -229,28 +248,28 @@ const WORLDS = [
      <ol class="steps"><li>${cG('50')} ist der ${GW}, also das Ganze.</li><li>${cP('20 %')} ist der ${PS}.</li>
      <li>Gesucht ist der ${PW}, also der Teil.</li><li>${cG('50')} · ${cP('20')} ÷ 100 = ${cW('10')}</li></ol>
      <p class="small">Trick ohne Rechner: 10 % ist ein Zehntel (50 ÷ 10 = 5). 20 % ist das Doppelte, also 10.</p>`,
-   make:() => shuffle([10,20,25,50,75]).map(taskW), doneText:'Der Vulkan ist abgekühlt.'},
+   make:() => shuffle([10,20,25,50,75]).map(taskW), doneText:'Der Vulkan ist abgekühlt.', meter:'Hitze'},
   {id:'ocean', icon:'🌊', name:'Ozean', wanted:`Gesucht: ${PS}`,
-   story:`Ein Sturm tobt über dem Meer. Jeder richtig berechnete ${PS} beruhigt die Wellen.`,
+   story:`Dein Boot hat ein Leck. Jeder richtig berechnete ${PS} flickt ein Loch und bringt dich näher zur Insel.`,
    formula:`${PS} = ${PW} ÷ ${GW} · 100`,
    example:`<p class="q">Wie viel Prozent sind ${cW('15')} von ${cG('60')}?</p>
      <ol class="steps"><li>${cG('60')} ist der ${GW}, also das Ganze.</li><li>${cW('15')} ist der ${PW}, also der Teil.</li>
      <li>Gesucht ist der ${PS}.</li><li>${cW('15')} ÷ ${cG('60')} · 100 = ${cP('25 %')}</li></ol>
      <p class="small">Trick ohne Rechner: 15 passt viermal in 60. Ein Viertel sind 25 %.</p>`,
-   make:() => shuffle([10,20,25,50,75]).map(taskP), doneText:'Der Sturm ist vorbei.'},
+   make:() => shuffle([10,20,25,50,75]).map(taskP), doneText:'Du bist sicher an der Insel angekommen.', meter:'Wasser im Boot'},
   {id:'forest', icon:'🌲', name:'Nebelwald', wanted:`Gesucht: ${GW}`,
-   story:`Im Nebelwald ist es dunkel. Jeder richtig gefundene ${GW} lässt ein Licht aufleuchten.`,
+   story:`Im Nebelwald siehst du kaum etwas. Jeder richtig gefundene ${GW} vertreibt etwas Nebel. Irgendwo liegt ein Schatz.`,
    formula:`${GW} = ${PW} ÷ ${PS} · 100`,
    example:`<p class="q">${cW('30')} sind ${cP('50 %')} von welcher Zahl?</p>
      <ol class="steps"><li>${cW('30')} ist der ${PW}, also nur ein Teil.</li><li>${cP('50 %')} ist der ${PS}.</li>
      <li>Gesucht ist der ${GW}, also das Ganze. Er ist größer als ${cW('30')}.</li><li>${cW('30')} ÷ ${cP('50')} · 100 = ${cG('60')}</li></ol>
      <p class="small">Trick ohne Rechner: Wie oft passen ${cP('50 %')} in 100 %? 2-mal. Also ist das Ganze 2 · ${cW('30')} = ${cG('60')}.</p>`,
-   make:() => shuffle([10,20,25,50,10]).map(taskG), doneText:'Der Wald leuchtet.'},
+   make:() => shuffle([10,20,25,50,10]).map(taskG), doneText:'Der Nebel ist weg. Du hast den Schatz gefunden.', meter:'Nebel'},
   {id:'peak', icon:'🏔️', name:'Gipfel', wanted:'Alles gemischt',
-   story:'Auf dem Gipfel ist alles gemischt. Lies jede Aufgabe genau: Was ist gesucht, das Ganze, der Teil oder die Prozent?',
+   story:'Ein Sturm zieht auf. Jede richtige Antwort bringt dich einen Schritt höher. Hier ist alles gemischt. Lies jede Aufgabe genau: Was ist gesucht, das Ganze, der Teil oder die Prozent?',
    formula:`${PW} = ${GW} · ${PS} ÷ 100`,
    example:`<p class="small">Hier gibt es kein neues Beispiel. Tipp: Frag dich bei jeder Aufgabe zuerst, welche der drei Farben fehlt.</p>`,
-   make:() => shuffle([taskW(pick([25,50])), taskP(pick([20,75])), taskG(pick([10,25])), taskR(), taskR()]), mixed:true, doneText:'Du stehst auf dem Gipfel.'}
+   make:() => shuffle([taskW(pick([25,50])), taskP(pick([20,75])), taskG(pick([10,25])), taskR(), taskR()]), mixed:true, doneText:'Du stehst auf dem Gipfel.', meter:'Sturm'}
 ];
 
 /* ---------- Tips ---------- */
@@ -299,6 +318,13 @@ const REACTION_SRC = '';
 const SCREENS = ['mapScreen','introScreen','taskScreen','doneScreen','resultScreen'];
 const show = id => SCREENS.forEach(s => $(s).classList.toggle('hidden', s!==id));
 const setP = v => document.documentElement.style.setProperty('--p', v);
+/* Danger: starts full, each correct answer lowers it, a wrong answer raises it a little (never to a loss) */
+let extra = 0;
+function setDanger(solved){
+  const d = Math.min(0.95, Math.max(0, (tasks.length - solved) / tasks.length + extra));
+  document.documentElement.style.setProperty('--d', d); setP(1 - d);
+  $('scene').classList.toggle('hot', w === 0 && d > 0.85);
+}
 
 function setScene(id){
   $('art').innerHTML = ART[id];
@@ -429,7 +455,7 @@ function drawMap(){
 
 function openWorld(i){
   w = i; const W = WORLDS[i];
-  $('scene').classList.remove('hidden'); setScene(W.id); setP(0);
+  $('scene').classList.remove('hidden'); setScene(W.id); $('mLabel').textContent = W.meter; extra = 0; tasks = []; 
   $('iTitle').textContent = `${W.icon} ${W.name}`;
   $('iStory').innerHTML = W.story; $('iFormula').innerHTML = W.formula; $('iExample').innerHTML = W.example;
   // No question twice: not inside this world and not from an earlier world
@@ -440,6 +466,7 @@ function openWorld(i){
     if(new Set(keys).size === keys.length && keys.every(k => !seen.has(k))) break;
   }
   tasks.forEach(t => seen.add(key(t)));
+  setDanger(0);
   idx = 0; first = 0;
   drawProgress(); show('introScreen');
 }
@@ -459,7 +486,7 @@ function loadTask(){
 }
 
 function advance(){
-  idx++; setP(idx / tasks.length);
+  idx++; extra = 0; setDanger(idx);
   if(idx < tasks.length) return loadTask();
   state[w] = {done:true, score:first, total:tasks.length};
   drawProgress();
@@ -470,7 +497,7 @@ function advance(){
 }
 
 function finish(){
-  $('scene').classList.remove('hidden'); setScene('peak'); setP(1);
+  $('scene').classList.remove('hidden'); setScene('peak'); $('mLabel').textContent = ''; extra = 0; setDanger(tasks.length);
   $('resTable').innerHTML = WORLDS.map((W,i) => `<tr><td>${W.icon} ${W.name}</td><td>${state[i].score} von ${state[i].total}</td></tr>`).join('');
   const tag = 'ABCDEFGHJKLMNPQRSTUVWXYZ'[rnd(0,23)] + rnd(1,9);
   $('code').textContent = 'PROZENT-' + state.map(s => s.score).join('-') + '-' + tag;
@@ -520,10 +547,11 @@ $('form').addEventListener('submit', e => {
         : `<img class="react" src="${REACTION_SRC}" alt="">`);
     }
     $('okmsg').className = 'okmsg show';
-    setP((idx+1) / tasks.length);
+    extra = 0; setDanger(idx+1);
     setTimeout(advance, REACTION_SRC ? 1600 : 700);
   } else {
     tries++;
+    extra = Math.min(extra + 0.1, 0.3); setDanger(idx);
     $('hint').innerHTML = hintFor(t, v, tries); $('hint').className = 'hint show';
     const c = $('taskScreen'); c.classList.remove('shake'); void c.offsetWidth; c.classList.add('shake');
     if(tries >= 2){ locked = true; $('nextWrap').classList.remove('hidden'); }
