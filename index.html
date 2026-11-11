@@ -513,7 +513,7 @@ function advance(){
   drawProgress();
   if(state.every(s => s.done)) return finish();
   $('dTitle').textContent = WORLDS[w].doneText;
-  $('dText').textContent = `Du hast ${first} von ${base} Aufgaben im ersten Versuch richtig gelöst.` + (redo ? ` Du hast ${redo} Nachholaufgabe${redo>1?'n':''} gelöst.` : '');
+  $('dText').textContent = pick(['Stark, du hast alle Aufgaben hier gelöst!','Geschafft! Auf zur nächsten Insel.','Sehr gut, diese Insel ist geschafft!']);
   show('doneScreen');
 }
 
@@ -552,7 +552,7 @@ function updateCode(){
 $('who').addEventListener('input', updateCode);
 function finish(){
   $('scene').classList.remove('hidden'); setScene('peak'); $('mLabel').textContent = ''; extra = 0; setDanger(tasks.length);
-  $('resTable').innerHTML = WORLDS.map((W,i) => `<tr><td>${W.icon} ${W.name}</td><td>${state[i].score} von ${state[i].total}${state[i].redo ? ` <span class="small">(${state[i].redo} nachgeholt)</span>` : ''}</td></tr>`).join('');
+  $('resTable').innerHTML = WORLDS.map((W,i) => `<tr><td>${W.icon} ${W.name}</td><td style="color:var(--ok)">✓ geschafft</td></tr>`).join('');
   runId = rnd(0,15);
   $('who').value = ''; updateCode();
   show('resultScreen');
@@ -563,8 +563,7 @@ function saveResult(){
   const d = new Date();
   const name = $('who').value.trim();
   const lines = ['Prozent-Welten – Ergebnis', `Name: ${name}`, `Datum: ${d.toLocaleDateString('de-DE')} ${d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}`, '',
-    'Im ersten Versuch richtig gelöst:',
-    ...WORLDS.map((W,i) => `- ${W.name}: ${state[i].score} von ${state[i].total}` + (state[i].redo ? `, ${state[i].redo} nachgeholt` : '')), '',
+    'Alle vier Inseln geschafft.', '',
     `Code: ${$('code').textContent}`];
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([lines.join('\n')], {type:'text/plain'}));
