@@ -73,7 +73,7 @@ td.n{text-align:center}
     <div class="note" id="note"></div>
 
     <h2>Alle Schülerinnen und Schüler</h2>
-    <p class="small">Zahlen = Aufgaben im ersten Versuch richtig (von 5). Auf eine Spalte klicken zum Sortieren.</p>
+    <p class="small">Zahlen = Aufgaben im ersten Versuch richtig (von 5). Nachgeholt = Aufgaben, die nach dem Lösungsweg mit neuen Zahlen noch einmal gelöst wurden. Auf eine Spalte klicken zum Sortieren.</p>
     <table><thead><tr id="head"></tr></thead><tbody id="rows"></tbody></table>
     <p class="small" id="legend"></p>
     <div class="row noprint">
@@ -95,8 +95,9 @@ const normName = n => n.trim().toLowerCase().replace(/\s+/g,' ');
 function fnv(str){ let h = 2166136261; for(const ch of str){ h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; } return h; }
 const sumCheck = (name, payload) => fnv('pi-7q|' + normName(name) + '|' + payload) & 0xffff;
 const maskOf = c => fnv('mask|' + c) & 0xffffff;
-function makeCode(name, scores, runId){
-  const payload = scores.reduce((a,s) => a*8 + s, 0) * 4096 + runId;   // 24 bits
+function makeCode(name, scores, redos, runId){
+  // 24 bits: scores 4 x 3 bits, retry tasks 4 x 2 bits, run id 4 bits
+  const payload = (scores.reduce((a,s) => a*8 + s, 0) * 256 + redos.reduce((a,r) => a*4 + r, 0)) * 16 + runId;
   const c = sumCheck(name, payload);
   let n = ((payload ^ maskOf(c)) >>> 0) * 65536 + c, out = '';
   for(let i=0; i<8; i++){ out = ABC[n % 32] + out; n = Math.floor(n / 32); }
@@ -107,10 +108,10 @@ function readCode(name, code){
   if(s.length !== 8) return null;
   let n = 0; for(const ch of s){ const v = ABC.indexOf(ch); if(v < 0) return null; n = n*32 + v; }
   const c = n % 65536, payload = (Math.floor(n / 65536) ^ maskOf(c)) >>> 0;
-  let p = Math.floor(payload / 4096); const scores = [];
-  for(let i=0; i<4; i++){ scores.unshift(p % 8); p = Math.floor(p / 8); }
+  let r = Math.floor(payload / 16) % 256, p = Math.floor(payload / 4096); const scores = [], redos = [];
+  for(let i=0; i<4; i++){ scores.unshift(p % 8); p = Math.floor(p / 8); redos.unshift(r % 4); r = Math.floor(r / 4); }
   const valid = sumCheck(name, payload) === c && scores.every(x => x <= 5);
-  return {scores, id: payload % 4096, valid};
+  return {scores, redos, id: payload % 16, valid};
 }
 const CODE = /\b([A-Za-z2-9]{4})-?([A-Za-z2-9]{4})\b/;
 let list = [], sortBy = 'name', sortDir = 1;
@@ -121,7 +122,7 @@ function add(name, text){
   const r = readCode(name, m[1] + m[2]); if(!r) return;
   const key = (m[1] + m[2]).toUpperCase();
   if(list.some(e => e.key === key && normName(e.name) === normName(name))) return; // same file twice
-  list.push({name, key, scores: r.scores, valid: r.valid, total: r.scores.reduce((a,b)=>a+b,0)});
+  list.push({name, key, scores: r.scores, redo: r.redos.reduce((a,b)=>a+b,0), valid: r.valid, total: r.scores.reduce((a,b)=>a+b,0)});
 }
 function fromFile(text){
   const nm = text.match(/^Name:\s*(.+)$/m), cd = text.match(/^Code:\s*(.+)$/m);
@@ -147,12 +148,12 @@ function render(){
   $('note').innerHTML = ok.length
     ? `<b>${ok.length} Ergebnisse.</b> Am schwierigsten war <b>${WORLDS[hard]} (${TOPIC[hard]})</b>. Hier lohnt sich eine kurze Wiederholung.`
     : 'Noch keine gültigen Ergebnisse.';
-  const cols = [['name','Name'],...WORLDS.map((W,i)=>['w'+i,W]),['total','Gesamt'],['valid','Code']];
+  const cols = [['name','Name'],...WORLDS.map((W,i)=>['w'+i,W]),['total','Gesamt'],['redo','Nachgeholt'],['valid','Code']];
   $('head').innerHTML = cols.map(([k,t]) => `<th data-k="${k}">${t}${sortBy===k?(sortDir>0?' ▲':' ▼'):''}</th>`).join('');
-  const val = (e,k) => k==='name' ? e.name.toLowerCase() : k==='total' ? e.total : k==='valid' ? +e.valid : e.scores[+k.slice(1)];
+  const val = (e,k) => k==='name' ? e.name.toLowerCase() : k==='total' ? e.total : k==='redo' ? e.redo : k==='valid' ? +e.valid : e.scores[+k.slice(1)];
   const rows = [...list].sort((a,b) => (val(a,sortBy) > val(b,sortBy) ? 1 : val(a,sortBy) < val(b,sortBy) ? -1 : 0) * sortDir);
   const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-  $('rows').innerHTML = rows.map(e => `<tr><td>${esc(e.name)}</td>${e.scores.map(s=>`<td class="n">${s}</td>`).join('')}<td class="n"><b>${e.total}</b> / 20</td>
+  $('rows').innerHTML = rows.map(e => `<tr><td>${esc(e.name)}</td>${e.scores.map(s=>`<td class="n">${s}</td>`).join('')}<td class="n"><b>${e.total}</b> / 20</td><td class="n">${e.redo}</td>
     <td>${e.valid ? '<span class="ok">✓ echt</span>' : '<span class="bad">✗ passt nicht</span>'}</td></tr>`).join('');
   $('legend').textContent = list.some(e => !e.valid)
     ? '„✗ passt nicht“ heißt: Der Code ist falsch abgeschrieben, wurde verändert oder gehört zu einem anderen Namen. Prüfen Sie bei Zetteln auch die Schreibweise des Namens. Diese Zeilen zählen nicht im Überblick.' : '';
@@ -175,7 +176,7 @@ $('addPaste').onclick = () => {
 $('print').onclick = () => print();
 $('clear').onclick = () => { if(confirm('Liste wirklich leeren?')){ list = []; render(); } };
 $('csv').onclick = () => {
-  const rows = [['Name',...WORLDS,'Gesamt','Code echt'], ...list.map(e => [e.name,...e.scores,e.total,e.valid?'ja':'nein'])];
+  const rows = [['Name',...WORLDS,'Gesamt','Nachgeholt','Code echt'], ...list.map(e => [e.name,...e.scores,e.total,e.redo,e.valid?'ja':'nein'])];
   const csv = '﻿' + rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(';')).join('\r\n');
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download = 'prozent-ergebnisse.csv'; a.click();
 };

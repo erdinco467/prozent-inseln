@@ -175,12 +175,12 @@ table.res td:last-child{text-align:right;font-weight:700}
     <ol class="todo">
       <li><b>Schreib deinen Namen.</b>
         <input id="who" maxlength="40" placeholder="Vorname Nachname" aria-label="Dein Name" autocomplete="off"></li>
-      <li><b>Lade dein Ergebnis herunter.</b>
+      <li><b>Mach einen Screenshot von dieser Seite oder lade dein Ergebnis herunter.</b> Auf dem Screenshot müssen dein Name und dein Code zu sehen sein.
+        <div class="code" id="code">Erst Namen eintragen</div>
         <button id="save" disabled>Ergebnis herunterladen</button></li>
-      <li><b>Gib die Datei ab</b>, so wie deine Lehrkraft es sagt. Zum Beispiel in IServ unter <b>Aufgaben</b>.</li>
+      <li><b>Gib den Screenshot oder die Datei ab</b>, so wie deine Lehrkraft es sagt. Zum Beispiel in IServ unter <b>Aufgaben</b>.</li>
     </ol>
-    <p class="small">Download klappt nicht? Schreib deinen Namen und diesen Code auf einen Zettel:</p>
-    <div class="code" id="code">Erst Namen eintragen</div>
+    <p class="small">Beides klappt nicht? Schreib deinen Namen und deinen Code auf einen Zettel.</p>
     <p class="small">Dein Name wird nirgendwo gespeichert oder verschickt. Er steht nur in deiner Datei.</p>
     <div class="row"><button class="ghost" id="again">Ganz von vorne anfangen</button></div>
   </section>
@@ -320,7 +320,15 @@ function solution(t){
 }
 
 /* ---------- Flow ---------- */
-let state, w, tasks, idx, tries, first, locked, seen;
+let state, w, tasks, idx, tries, first, locked, seen, redo, base;
+const MAX_REDO = 3;
+const taskKey = t => `${t.kind}-${t.G}-${t.p}`;
+/* A new task of the same kind with new numbers, not asked before */
+function similar(t){
+  const gen = {W:taskW, P:taskP, G:taskG, R:taskR}[t.kind];
+  let n; for(let i=0; i<60; i++){ n = gen(t.p); if(!seen.has(taskKey(n))) break; }
+  seen.add(taskKey(n)); n.retry = true; return n;
+}
 
 /* Optional reaction on a correct answer (image, GIF or short video).
    Put the file next to this page and write its name here, for example 'reaktion.gif'.
@@ -342,7 +350,7 @@ function setScene(id){
   const sc = $('scene'); sc.classList.remove('swap'); void sc.offsetWidth; sc.classList.add('swap');
 }
 
-function reset(){ state = WORLDS.map(() => ({done:false, score:0, total:0})); seen = new Set(); drawMap(); }
+function reset(){ state = WORLDS.map(() => ({done:false, score:0, total:0, redo:0})); seen = new Set(); drawMap(); }
 
 /* ---------- Illustrated island map (viewBox 360 x 300) ---------- */
 const INK = '#2b1d14';
@@ -470,7 +478,7 @@ function openWorld(i){
   $('iTitle').textContent = `${W.icon} ${W.name}`;
   $('iStory').innerHTML = W.story; $('iFormula').innerHTML = W.formula; $('iExample').innerHTML = W.example;
   // No question twice: not inside this world and not from an earlier world
-  const key = t => `${t.kind}-${t.G}-${t.p}`;
+  const key = taskKey;
   for(let n=0; n<200; n++){
     tasks = W.make();
     const keys = tasks.map(key);
@@ -478,7 +486,7 @@ function openWorld(i){
   }
   tasks.forEach(t => seen.add(key(t)));
   setDanger(0);
-  idx = 0; first = 0;
+  idx = 0; first = 0; redo = 0; base = tasks.length;
   drawProgress(); show('introScreen');
 }
 
@@ -488,22 +496,24 @@ function drawProgress(){
 
 function loadTask(){
   const t = tasks[idx], W = WORLDS[w]; tries = 0; locked = false;
-  $('tLabel').innerHTML = `${W.icon} ${W.name} · Aufgabe ${idx+1} von ${tasks.length}` + (W.mixed ? '' : ` · ${W.wanted}`);
+  $('tLabel').innerHTML = `${W.icon} ${W.name} · ` + (tasks[idx].retry ? 'Nachholaufgabe' : `Aufgabe ${idx+1} von ${base}`) + (W.mixed ? '' : ` · ${W.wanted}`);
   $('tText').innerHTML = t.text;
   $('tEq').innerHTML = t.eq; $('tEq').classList.toggle('hidden', W.mixed || !t.eq);
   $('ans').value = ''; $('hint').className = 'hint'; $('okmsg').className = 'okmsg';
-  $('nextWrap').classList.add('hidden');
+  $('nextWrap').classList.add('hidden'); $('next').textContent = 'Weiter';
   drawProgress(); show('taskScreen'); $('ans').focus();
 }
 
 function advance(){
+  const cur = tasks[idx];
+  if(!cur.solved && redo < MAX_REDO){ tasks.push(similar(cur)); redo++; }
   idx++; extra = 0; setDanger(idx);
   if(idx < tasks.length) return loadTask();
-  state[w] = {done:true, score:first, total:tasks.length};
+  state[w] = {done:true, score:first, total:base, redo};
   drawProgress();
   if(state.every(s => s.done)) return finish();
   $('dTitle').textContent = WORLDS[w].doneText;
-  $('dText').textContent = `Du hast ${first} von ${tasks.length} Aufgaben im ersten Versuch richtig gelöst.`;
+  $('dText').textContent = `Du hast ${first} von ${base} Aufgaben im ersten Versuch richtig gelöst.` + (redo ? ` Du hast ${redo} Nachholaufgabe${redo>1?'n':''} gelöst.` : '');
   show('doneScreen');
 }
 
@@ -515,8 +525,9 @@ const normName = n => n.trim().toLowerCase().replace(/\s+/g,' ');
 function fnv(str){ let h = 2166136261; for(const ch of str){ h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; } return h; }
 const sumCheck = (name, payload) => fnv('pi-7q|' + normName(name) + '|' + payload) & 0xffff;
 const maskOf = c => fnv('mask|' + c) & 0xffffff;
-function makeCode(name, scores, runId){
-  const payload = scores.reduce((a,s) => a*8 + s, 0) * 4096 + runId;   // 24 bits
+function makeCode(name, scores, redos, runId){
+  // 24 bits: scores 4 x 3 bits, retry tasks 4 x 2 bits, run id 4 bits
+  const payload = (scores.reduce((a,s) => a*8 + s, 0) * 256 + redos.reduce((a,r) => a*4 + r, 0)) * 16 + runId;
   const c = sumCheck(name, payload);
   let n = ((payload ^ maskOf(c)) >>> 0) * 65536 + c, out = '';
   for(let i=0; i<8; i++){ out = ABC[n % 32] + out; n = Math.floor(n / 32); }
@@ -527,22 +538,22 @@ function readCode(name, code){
   if(s.length !== 8) return null;
   let n = 0; for(const ch of s){ const v = ABC.indexOf(ch); if(v < 0) return null; n = n*32 + v; }
   const c = n % 65536, payload = (Math.floor(n / 65536) ^ maskOf(c)) >>> 0;
-  let p = Math.floor(payload / 4096); const scores = [];
-  for(let i=0; i<4; i++){ scores.unshift(p % 8); p = Math.floor(p / 8); }
+  let r = Math.floor(payload / 16) % 256, p = Math.floor(payload / 4096); const scores = [], redos = [];
+  for(let i=0; i<4; i++){ scores.unshift(p % 8); p = Math.floor(p / 8); redos.unshift(r % 4); r = Math.floor(r / 4); }
   const valid = sumCheck(name, payload) === c && scores.every(x => x <= 5);
-  return {scores, id: payload % 4096, valid};
+  return {scores, redos, id: payload % 16, valid};
 }
 let runId = 0;
 function updateCode(){
   const name = $('who').value, ok = normName(name).length >= 2, sc = state.map(s => s.score);
   $('save').disabled = !ok;
-  $('code').textContent = ok ? makeCode(name, sc, runId) : 'Erst Namen eintragen';
+  $('code').textContent = ok ? makeCode(name, sc, state.map(s => s.redo), runId) : 'Erst Namen eintragen';
 }
 $('who').addEventListener('input', updateCode);
 function finish(){
   $('scene').classList.remove('hidden'); setScene('peak'); $('mLabel').textContent = ''; extra = 0; setDanger(tasks.length);
-  $('resTable').innerHTML = WORLDS.map((W,i) => `<tr><td>${W.icon} ${W.name}</td><td>${state[i].score} von ${state[i].total}</td></tr>`).join('');
-  runId = rnd(0,4095);
+  $('resTable').innerHTML = WORLDS.map((W,i) => `<tr><td>${W.icon} ${W.name}</td><td>${state[i].score} von ${state[i].total}${state[i].redo ? ` <span class="small">(${state[i].redo} nachgeholt)</span>` : ''}</td></tr>`).join('');
+  runId = rnd(0,15);
   $('who').value = ''; updateCode();
   show('resultScreen');
 }
@@ -553,7 +564,7 @@ function saveResult(){
   const name = $('who').value.trim();
   const lines = ['Prozent-Welten – Ergebnis', `Name: ${name}`, `Datum: ${d.toLocaleDateString('de-DE')} ${d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}`, '',
     'Im ersten Versuch richtig gelöst:',
-    ...WORLDS.map((W,i) => `- ${W.name}: ${state[i].score} von ${state[i].total}`), '',
+    ...WORLDS.map((W,i) => `- ${W.name}: ${state[i].score} von ${state[i].total}` + (state[i].redo ? `, ${state[i].redo} nachgeholt` : '')), '',
     `Code: ${$('code').textContent}`];
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([lines.join('\n')], {type:'text/plain'}));
@@ -580,7 +591,8 @@ $('form').addEventListener('submit', e => {
   if(raw === '' || isNaN(raw)) return;
   const v = Number(raw), t = tasks[idx];
   if(Math.abs(v - t.a) < 1e-9){
-    if(tries === 0) first++;
+    if(tries === 0 && !t.retry) first++;
+    t.solved = true;
     locked = true;
     $('hint').className = 'hint';
     $('okmsg').textContent = pick(['Richtig!','Genau!','Stark!','Sehr gut!']);
@@ -598,7 +610,13 @@ $('form').addEventListener('submit', e => {
     extra = Math.min(extra + 0.1, 0.3); setDanger(idx);
     $('hint').innerHTML = hintFor(t, v, tries); $('hint').className = 'hint show';
     const c = $('taskScreen'); c.classList.remove('shake'); void c.offsetWidth; c.classList.add('shake');
-    if(tries >= 2){ locked = true; $('nextWrap').classList.remove('hidden'); }
+    if(tries >= 2){
+      locked = true; $('nextWrap').classList.remove('hidden');
+      if(redo < MAX_REDO){
+        $('next').textContent = 'Ähnliche Aufgabe probieren';
+        $('hint').insertAdjacentHTML('beforeend', '<p class="small" style="margin:8px 0 0">Lies dir den Lösungsweg in Ruhe durch. Danach bekommst du eine ähnliche Aufgabe mit neuen Zahlen.</p>');
+      }
+    }
   }
 });
 reset();
