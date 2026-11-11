@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prozent-Inseln · Lehrkraft</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&family=Nunito:wght@400;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+:root{--ink:#2b1d14;--paper:#fbf6ea;--sand:#f3e3bf;--lava:#d9622b;--ok:#3f8a5a;--bad:#c0392b;--muted:#6b5a4a;--line:#e2d6bd}
+*{box-sizing:border-box}
+body{margin:0;background:#e9e2d2;color:var(--ink);font:16px/1.5 "Nunito",system-ui,sans-serif}
+.page{max-width:900px;margin:20px auto;background:var(--paper);padding:28px 32px;border-radius:12px;box-shadow:0 6px 30px #0002}
+h1,h2{font-family:"Fredoka",system-ui,sans-serif;margin:0 0 8px}
+h1{font-size:28px}h2{font-size:19px;margin-top:24px}
+.kicker{font:700 12px "Fredoka",sans-serif;letter-spacing:2px;text-transform:uppercase;color:var(--lava)}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:16px 0}
+.step{background:#fff;border:2px solid var(--ink);border-radius:12px;padding:12px;font-size:14.5px}
+.step b{display:block;font-family:"Fredoka",sans-serif;font-size:16px}
+.drop{border:3px dashed var(--ink);border-radius:14px;background:#fff;padding:26px;text-align:center;cursor:pointer;transition:background .15s}
+.drop.over{background:var(--sand)}
+.drop big{display:block;font:700 20px "Fredoka",sans-serif}
+textarea{width:100%;min-height:80px;font:15px/1.4 ui-monospace,monospace;border:2px solid var(--ink);border-radius:10px;padding:10px;margin-top:6px}
+button{font:700 15px "Nunito",sans-serif;padding:10px 16px;border-radius:10px;border:2px solid var(--ink);background:var(--lava);color:#fff;cursor:pointer}
+button.ghost{background:#fff;color:var(--ink)}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.card{background:#fff;border:2px solid var(--ink);border-radius:12px;padding:10px 12px}
+.card .t{font-size:13px;color:var(--muted);font-weight:700}
+.card .v{font:700 24px "Fredoka",sans-serif}
+.meter{height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin-top:4px}
+.meter i{display:block;height:100%;background:var(--ok)}
+.card.hard{border-color:var(--lava);box-shadow:0 0 0 2px var(--lava)}
+.note{background:#fff;border-left:5px solid var(--lava);padding:10px 14px;border-radius:0 10px 10px 0;margin-top:12px}
+table{width:100%;border-collapse:collapse;margin-top:10px;background:#fff;border-radius:10px;overflow:hidden}
+th,td{padding:8px 10px;border-bottom:1.5px solid var(--line);text-align:left}
+th{font-family:"Fredoka",sans-serif;background:var(--sand);cursor:pointer;user-select:none}
+td.n{text-align:center}
+.ok{color:var(--ok);font-weight:800}.bad{color:var(--bad);font-weight:800}
+.small{font-size:13px;color:var(--muted)}
+.hidden{display:none}
+@media (max-width:680px){.page{margin:0;border-radius:0;padding:20px 16px}.steps,.cards{grid-template-columns:1fr 1fr}}
+@media print{body{background:#fff}.page{box-shadow:none;margin:0}.noprint{display:none!important}}
+</style>
+</head>
+<body>
+<main class="page">
+  <div class="kicker">Für Lehrkräfte</div>
+  <h1>Prozent-Inseln · Ergebnisse auswerten</h1>
+  <p>Hier sehen Sie die Ergebnisse Ihrer Klasse auf einen Blick. Alles bleibt in Ihrem Browser. Nichts wird hochgeladen oder gespeichert.</p>
+
+  <div class="steps noprint">
+    <div class="step"><b>1. Abgaben holen</b>In IServ bei der Aufgabe alle Abgaben herunterladen. Eine ZIP-Datei ist in Ordnung.</div>
+    <div class="step"><b>2. Hier hineinziehen</b>Die ZIP-Datei oder die Textdateien in das Feld unten ziehen.</div>
+    <div class="step"><b>3. Fertig</b>Die Tabelle erscheint sofort. Sie können sie drucken oder für Excel speichern.</div>
+  </div>
+
+  <div class="drop noprint" id="drop" tabindex="0" role="button">
+    <big>Dateien hier hineinziehen</big>
+    oder klicken und auswählen (ZIP oder .txt, auch mehrere)
+    <input type="file" id="file" multiple accept=".txt,.zip" class="hidden">
+  </div>
+  <details class="noprint" style="margin-top:12px">
+    <summary><b>Codes von Zetteln eintippen</b></summary>
+    <p class="small">Eine Zeile pro Schüler: Name und Code, zum Beispiel <i>Mia Becker PROZENT-5-4-3-5-K7M2-Q9A</i></p>
+    <textarea id="paste" placeholder="Mia Becker PROZENT-..."></textarea>
+    <div class="row"><button id="addPaste">Hinzufügen</button></div>
+  </details>
+
+  <section id="out" class="hidden">
+    <h2>Überblick</h2>
+    <div class="cards" id="cards"></div>
+    <div class="note" id="note"></div>
+
+    <h2>Alle Schülerinnen und Schüler</h2>
+    <p class="small">Zahlen = Aufgaben im ersten Versuch richtig (von 5). Auf eine Spalte klicken zum Sortieren.</p>
+    <table><thead><tr id="head"></tr></thead><tbody id="rows"></tbody></table>
+    <p class="small" id="legend"></p>
+    <div class="row noprint">
+      <button id="print">Drucken</button>
+      <button class="ghost" id="csv">Für Excel speichern</button>
+      <button class="ghost" id="clear">Liste leeren</button>
+    </div>
+  </section>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const WORLDS = ['Vulkan','Ozean','Nebelwald','Gipfel'];
+const TOPIC = ['Prozentwert','Prozentsatz','Grundwert','gemischte Aufgaben'];
+/* Same check as on the student page */
+const ABC = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const normName = n => n.trim().toLowerCase().replace(/\s+/g,' ');
+function check(name, scores, id){
+  let h = 2166136261;
+  for(const ch of 'pi-7q|' + normName(name) + '|' + scores.join('-') + '|' + id){ h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
+  return Array.from({length:3}, (_,i) => ABC[(h >>> (i*5)) & 31]).join('');
+}
+const CODE = /PROZENT-(\d)-(\d)-(\d)-(\d)-([A-Z0-9]{4})-([A-Z0-9]{3})/i;
+let list = [], sortBy = 'name', sortDir = 1;
+
+function add(name, text){
+  const m = text.match(CODE); if(!m) return;
+  const scores = m.slice(1,5).map(Number), id = m[5].toUpperCase();
+  name = name.trim() || '(ohne Namen)';
+  const valid = check(name, scores, id) === m[6].toUpperCase();
+  if(list.some(e => e.id === id && normName(e.name) === normName(name))) return; // same file twice
+  list.push({name, scores, id, valid, total: scores.reduce((a,b)=>a+b,0)});
+}
+function fromFile(text){
+  const nm = text.match(/^Name:\s*(.+)$/m);
+  add(nm ? nm[1] : '', text);
+}
+async function readFiles(files){
+  for(const f of files){
+    if(/\.zip$/i.test(f.name)){
+      const zip = await JSZip.loadAsync(f);
+      for(const e of Object.values(zip.files)) if(!e.dir && /\.txt$/i.test(e.name)) fromFile(await e.async('string'));
+    } else fromFile(await f.text());
+  }
+  render();
+}
+function render(){
+  $('out').classList.toggle('hidden', !list.length);
+  if(!list.length) return;
+  const ok = list.filter(e => e.valid);
+  const avg = WORLDS.map((_,i) => ok.length ? ok.reduce((a,e)=>a+e.scores[i],0)/ok.length : 0);
+  const hard = avg.indexOf(Math.min(...avg));
+  $('cards').innerHTML = WORLDS.map((W,i) => `<div class="card ${i===hard && ok.length?'hard':''}"><div class="t">${W} · ${TOPIC[i]}</div>
+    <div class="v">${avg[i].toFixed(1).replace('.',',')} <span class="small">von 5</span></div><div class="meter"><i style="width:${avg[i]*20}%"></i></div></div>`).join('');
+  $('note').innerHTML = ok.length
+    ? `<b>${ok.length} Ergebnisse.</b> Am schwierigsten war <b>${WORLDS[hard]} (${TOPIC[hard]})</b>. Hier lohnt sich eine kurze Wiederholung.`
+    : 'Noch keine gültigen Ergebnisse.';
+  const cols = [['name','Name'],...WORLDS.map((W,i)=>['w'+i,W]),['total','Gesamt'],['valid','Code']];
+  $('head').innerHTML = cols.map(([k,t]) => `<th data-k="${k}">${t}${sortBy===k?(sortDir>0?' ▲':' ▼'):''}</th>`).join('');
+  const val = (e,k) => k==='name' ? e.name.toLowerCase() : k==='total' ? e.total : k==='valid' ? +e.valid : e.scores[+k.slice(1)];
+  const rows = [...list].sort((a,b) => (val(a,sortBy) > val(b,sortBy) ? 1 : val(a,sortBy) < val(b,sortBy) ? -1 : 0) * sortDir);
+  const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  $('rows').innerHTML = rows.map(e => `<tr><td>${esc(e.name)}</td>${e.scores.map(s=>`<td class="n">${s}</td>`).join('')}<td class="n"><b>${e.total}</b> / 20</td>
+    <td>${e.valid ? '<span class="ok">✓ echt</span>' : '<span class="bad">✗ passt nicht</span>'}</td></tr>`).join('');
+  $('legend').textContent = list.some(e => !e.valid)
+    ? '„✗ passt nicht“ heißt: Der Code wurde verändert oder gehört zu einem anderen Namen. Diese Zeilen zählen nicht im Überblick.' : '';
+}
+$('head').addEventListener('click', e => { const k = e.target.dataset.k; if(!k) return; sortDir = sortBy===k ? -sortDir : 1; sortBy = k; render(); });
+const drop = $('drop');
+drop.onclick = () => $('file').click();
+drop.onkeydown = e => { if(e.key==='Enter'||e.key===' '){ e.preventDefault(); $('file').click(); } };
+$('file').onchange = e => readFiles([...e.target.files]);
+['dragenter','dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave','drop'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => readFiles([...e.dataTransfer.files]));
+$('addPaste').onclick = () => {
+  for(const line of $('paste').value.split('\n')){ const m = line.match(CODE); if(m) add(line.replace(m[0],'').replace(/[;,:\t]/g,' '), line); }
+  $('paste').value = ''; render();
+};
+$('print').onclick = () => print();
+$('clear').onclick = () => { if(confirm('Liste wirklich leeren?')){ list = []; render(); } };
+$('csv').onclick = () => {
+  const rows = [['Name',...WORLDS,'Gesamt','Code echt'], ...list.map(e => [e.name,...e.scores,e.total,e.valid?'ja':'nein'])];
+  const csv = '﻿' + rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(';')).join('\r\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download = 'prozent-ergebnisse.csv'; a.click();
+};
+</script>
+</body>
+</html>

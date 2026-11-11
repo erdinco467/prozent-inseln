@@ -105,6 +105,10 @@ button.ghost{background:var(--line);color:var(--text)}
 @keyframes foam{to{stroke-dashoffset:-34}}
 h1,.card h1{font-family:"Fredoka",system-ui,sans-serif;letter-spacing:.3px}
 
+.todo{padding-left:22px;margin:14px 0}
+.todo li{margin:0 0 14px}
+.todo input,.todo button{display:block;margin-top:6px;width:100%}
+button:disabled{opacity:.4;cursor:not-allowed}
 .code{font-size:1.5rem;font-weight:800;letter-spacing:1px;text-align:center;background:#1b1424;border-radius:12px;padding:14px;margin:12px 0}
 .meme{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
 .meme div{background:#1b1424;border-radius:12px;padding:12px;text-align:center}
@@ -166,12 +170,19 @@ table.res td:last-child{text-align:right;font-weight:700}
   <!-- Result -->
   <section class="card hidden" id="resultScreen">
     <h1>Endlich fertig!</h1>
-    <p><b>Aber noch nicht schließen!</b> Speichere deine Ergebnisse per Screenshot oder als Datei.</p>
-    <p>Im ersten Versuch richtig gelöst:</p>
+    <p><b>Aber noch nicht schließen!</b> Schicke jetzt dein Ergebnis an deine Lehrkraft.</p>
     <table class="res" id="resTable"></table>
-    <p class="small" style="margin-top:14px">Dein Code für die Lehrkraft:</p>
-    <div class="code" id="code"></div>
-    <div class="row"><button id="save">Ergebnis herunterladen</button><button class="ghost" id="again">Nochmal</button></div>
+    <ol class="todo">
+      <li><b>Schreib deinen Namen.</b>
+        <input id="who" maxlength="40" placeholder="Vorname Nachname" aria-label="Dein Name" autocomplete="off"></li>
+      <li><b>Lade dein Ergebnis herunter.</b>
+        <button id="save" disabled>Ergebnis herunterladen</button></li>
+      <li><b>Gib die Datei ab</b>, so wie deine Lehrkraft es sagt. Zum Beispiel in IServ unter <b>Aufgaben</b>.</li>
+    </ol>
+    <p class="small">Download klappt nicht? Schreib deinen Namen und diesen Code auf einen Zettel:</p>
+    <div class="code" id="code">Erst Namen eintragen</div>
+    <p class="small">Dein Name wird nirgendwo gespeichert oder verschickt. Er steht nur in deiner Datei.</p>
+    <div class="row"><button class="ghost" id="again">Ganz von vorne anfangen</button></div>
   </section>
 
 </div>
@@ -496,24 +507,42 @@ function advance(){
   show('doneScreen');
 }
 
+/* Result code: PROZENT-scores-ID-CHECK. The check mixes name, scores and ID,
+   so a code cannot be typed by hand or swapped with another student.
+   The teacher page uses the same function. */
+const ABC = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+let runId = '';
+const normName = n => n.trim().toLowerCase().replace(/\s+/g,' ');
+function check(name, scores, id){
+  let h = 2166136261;
+  for(const ch of 'pi-7q|' + normName(name) + '|' + scores.join('-') + '|' + id){ h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
+  return Array.from({length:3}, (_,i) => ABC[(h >>> (i*5)) & 31]).join('');
+}
+function updateCode(){
+  const name = $('who').value, ok = normName(name).length >= 2, sc = state.map(s => s.score);
+  $('save').disabled = !ok;
+  $('code').textContent = ok ? `PROZENT-${sc.join('-')}-${runId}-${check(name, sc, runId)}` : 'Erst Namen eintragen';
+}
+$('who').addEventListener('input', updateCode);
 function finish(){
   $('scene').classList.remove('hidden'); setScene('peak'); $('mLabel').textContent = ''; extra = 0; setDanger(tasks.length);
   $('resTable').innerHTML = WORLDS.map((W,i) => `<tr><td>${W.icon} ${W.name}</td><td>${state[i].score} von ${state[i].total}</td></tr>`).join('');
-  const tag = 'ABCDEFGHJKLMNPQRSTUVWXYZ'[rnd(0,23)] + rnd(1,9);
-  $('code').textContent = 'PROZENT-' + state.map(s => s.score).join('-') + '-' + tag;
+  runId = Array.from({length:4}, () => ABC[rnd(0,ABC.length-1)]).join('');
+  $('who').value = ''; updateCode();
   show('resultScreen');
 }
 
 // Download the result as a small text file (nothing is sent or stored online)
 function saveResult(){
   const d = new Date();
-  const lines = ['Prozent-Welten – Ergebnis', `Datum: ${d.toLocaleDateString('de-DE')} ${d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}`, '',
+  const name = $('who').value.trim();
+  const lines = ['Prozent-Welten – Ergebnis', `Name: ${name}`, `Datum: ${d.toLocaleDateString('de-DE')} ${d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}`, '',
     'Im ersten Versuch richtig gelöst:',
     ...WORLDS.map((W,i) => `- ${W.name}: ${state[i].score} von ${state[i].total}`), '',
     `Code: ${$('code').textContent}`];
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([lines.join('\n')], {type:'text/plain'}));
-  a.download = 'prozent-ergebnis.txt';
+  a.download = 'prozent-' + name.replace(/[^\wäöüÄÖÜß-]+/g,'_') + '.txt';
   document.body.appendChild(a); a.click(); a.remove();
 }
 
@@ -526,7 +555,7 @@ $('map').addEventListener('keydown', e => { if(e.key === 'Enter' || e.key === ' 
 $('iGo').onclick = loadTask;
 $('iBack').onclick = drawMap;
 $('dMap').onclick = drawMap;
-$('again').onclick = reset;
+$('again').onclick = () => { if(confirm('Wirklich von vorne anfangen? Dein Ergebnis ist dann weg.')) reset(); };
 $('save').onclick = saveResult;
 $('next').onclick = advance;
 $('form').addEventListener('submit', e => {
